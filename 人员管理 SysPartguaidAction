@@ -1,0 +1,72 @@
+@IocBean
+@InjectName
+@At("sys/part")
+public class SysPartguardAction extends BaseAction{
+	@Inject
+	private SysPartguardDao sysPartguardDao;
+	
+	private static final Logger logger = (Logger) LoggerFactory.getLogger(SysPartguardAction.class);
+	
+	/**
+	 * 功能描述：获取保安炊事员信息
+	 * 
+	 */
+	@At
+	@Ok("json")
+	public Object getPartguardList(String nbjgh,int pageIndex, int pageSize){
+		if (sysPartguardDao == null) {
+			sysPartguardDao = Mvcs.ctx().getDefaultIoc().get(SysPartguardDao.class, "sysPartguardDao");
+		}
+		GridQueryPageResult PartguardList=sysPartguardDao.getPartguardList(nbjgh,pageIndex,pageSize);
+		return PartguardList;
+	}
+	
+	@At()
+	@Ok("jsp:/sys/jsp/sys_partguard.jsp")
+	public Object toEditPart(String nbjgh, HttpServletRequest req){
+		SysPartguard pagu = sysPartguardDao.fetch(Cnd.where("nbjgh", "=", nbjgh));
+		return pagu;
+	}
+	
+	@At()
+	@Ok("json")
+	public Object delPart(String nbjgh){
+		try {
+			sysPartguardDao.dao().clear(SysPartguard.class, Cnd.where("nbjgh", "=", nbjgh));
+			return requestResult(true, "删除成功!!");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return requestResult(false, "删除失败!!");
+		}
+	}
+	
+	@At
+	@Ok("json")
+	public boolean checkNbjgh(String nbjgh){
+		String sql="select count(*) from EWS.EWS_PARTER_GUARD where nbjgh= '"+nbjgh+"'";
+		int num=sysPartguardDao.singleInt(sql);
+		if(num==0){
+			return true;
+		}
+		return false;
+	}
+	
+	@At
+	@Ok("json")
+	@AdaptBy(type = JsonAdaptor.class)
+	public Object addOrUpdate(@Param("..")SysPartguard part){
+		try{
+			String nbjgh=part.getNbjgh();
+			boolean a=checkNbjgh(nbjgh);
+			if(a==true){
+				sysPartguardDao.dao().insert(part);
+			}else{
+				sysPartguardDao.dao().updateIgnoreNull(part);
+			}
+			return requestResult(true, null);
+		}catch (Exception e) {
+			e.printStackTrace();
+			return requestResult(false, null);
+		}
+	}
+}
