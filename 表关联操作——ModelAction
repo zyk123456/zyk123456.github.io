@@ -1,0 +1,153 @@
+@IocBean
+@InjectName
+@At("model")
+public class ModelAction extends BaseAction {
+	
+	@Inject
+	private Integer exportModelDataCount;
+	
+	@Inject
+	private String tempStringPath;
+	
+	private static final Logger logger = LoggerFactory.getLogger(ModelAction.class);
+	
+	@Inject
+	private ModelDao modelDao;
+	
+	@Inject
+	private ModelProcessDao modelProcessDao;
+	
+	@Inject
+	private ModelProblemDao modelProblemDao;
+	
+	@Inject
+	private ModelProblemGatherDao modelProblemGatherDao;
+	
+	@Inject
+	private ModelOutruleGatherDao modelOutruleGatherDao;
+	@Inject
+	private String iccUrl;
+	
+	@Inject
+	private DmImportLogInfoDao dmImportLogInfoDao;
+	
+	@Inject
+	private ModelSubsqlDao modelSubsqlDao;
+
+	/**
+	 * 创建模型
+	 * 
+	 * @param model
+	 * @return
+	 */
+	@At
+	@Ok("json")
+	@AdaptBy(type = JsonAdaptor.class)
+	public Object addOrUpdate(@Param("..") Model model) {
+		try {
+			if (StrUtil.isNotNull(model.getId())) {
+			    //如果不为空，得到ID找到content里面的SQL语句逐条删除
+			    /*String sqlStr = "SELECT * FROM　EWS_MODEL_SUBSQL WHERE INDICKEY = '"+model.getId()+"'";
+				Sql sql = Sqls.create(sqlStr);
+				List<ModelSubsql> oldList=modelSubsqlDao.getListBySql(sql);
+				for(int i=0 ; i < oldList.size() ; i++){
+					modelSubsqlDao.delModelSubsql(oldList.get(i).getId());
+				}*/
+				modelSubsqlDao.delModelSubsql(model.getId());
+				
+				String[] sqlss= model.getContent().split("\n");
+				for(int j=0 ; j < sqlss.length ; j++)
+				{
+					modelSubsqlDao.insertModelSubsql(model.getId(),Integer.toString(j+1) ,null, sqlss[j]);
+				}
+				modelDao.updateModel(model);
+			} else {
+				//以分号分割，存入modelsubsql
+				modelDao.createModel(model);
+				String[] sqls= model.getContent().split(";");
+				for(int i=0 ; i < sqls.length ; i++)
+				{
+	                modelSubsqlDao.insertModelSubsql(model.getId(),Integer.toString(i+1) ,null, sqls[i]);
+				}
+			}
+			
+			
+			return super.requestResult(true, "");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return super.requestResult(false, "");
+		}
+		
+	}
+	
+	/**
+	 * 获取权限信息用于编辑
+	 * 
+	 * @param id
+	 * @return
+	 */
+	@Ok("jsp:/model/jsp/addOrUpdate.jsp")
+	@At
+	public Object editModel(String id) {
+		Model model=modelDao.fetch(id);
+		//找到要编辑的ID对应的SQL语句，分割显示
+		String sqlStr = "SELECT SELSQL FROM EWS_MODEL_SUBSQL WHERE INDICKEY = '"+id+"' ORDER BY EXESEQ ";
+		Sql sql = Sqls.create(sqlStr);
+		List<ModelSubsql> list = modelSubsqlDao.getListBySql(sql);
+		
+		StringBuffer sb = new StringBuffer();
+		for(int i=0 ; i < list.size() ; i++){
+			sb.append(list.get(i).getSelsql());
+			sb.append("\r\n");
+		}
+		
+		model.setContent(sb.toString());
+		return model;
+	}
+	
+	@At
+	@Ok("json")
+	public Object getModelContent(String id) throws Exception {
+		Model model=modelDao.fetch(id);
+		//model.setContent(model.getContent().replace("\"", "&#34;"));
+		return model;
+	}
+	
+	/**
+	 * 创建模型
+	 * 
+	 * @param model
+	 * @return
+	 */
+	@At
+	@Ok("json")
+	public Object setModelContent(String id,String content) {
+		try {
+			modelDao.updateModel(id, content);
+			return super.requestResult(true, "");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return super.requestResult(false, "");
+		}
+	}
+	
+	@At
+	@Ok("json")
+	public Object getEastTables() {
+		return modelDao.getEastTableList();
+	}
+	
+	@At
+	@Ok("json")
+	public Object delModel(String id) {
+		try {
+			modelDao.delModel(id);
+	//删除subsql的数据
+			modelSubsqlDao.delModelSubsql(id);
+			return super.requestResult(true, "");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return super.requestResult(false, "");
+		}
+	}
+	
