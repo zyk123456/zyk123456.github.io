@@ -1,0 +1,17 @@
+@IocBean(fields = { "dao" })
+public class ModelSubsqlDao extends BaseDao<ModelSubsql> {
+
+	public void insertModelSubsql(String indickey, String exeseq, String dec, String selsql) {
+		String sqlStr = "INSERT INTO EWS_MODEL_SUBSQL(INDICKEY,EXESEQ,DES,SELSQL) VALUES ( '" + indickey + "' , '"
+				+ exeseq + "' , '" + dec + "' , '" + selsql + "' )";
+		Sql sql = Sqls.create(sqlStr);
+		super.dao().execute(sql);
+	}
+
+	public void delModelSubsql(String id) {
+		String sqlStr = "DELETE FROM EWS_MODEL_SUBSQL WHERE INDICKEY = '" + id + "'";
+		Sql sql = Sqls.create(sqlStr);
+		super.dao().execute(sql);
+	}
+
+}
